@@ -2,7 +2,7 @@
 
 A desktop Obsidian integration for publishing selected notes and files to your own WeKnora knowledge base. Independent community project; not an official Obsidian or Tencent product.
 
-**Status: early release candidate.** Windows desktop has been tested. macOS/Linux and official community-directory installation have not been verified. This project does not include a hosted service, keys, or a private deployment.
+**Status: listed in the Obsidian Community directory.** Version 1.3.0 passed the directory review. Windows desktop has been tested; macOS/Linux have not been verified. This project does not include a hosted service, keys, or a private deployment.
 
 ## What it does
 
@@ -25,7 +25,9 @@ If you only run stock WeKnora, validate the API contract before enabling continu
 
 Requires **Obsidian 1.11.4+ on desktop**. Mobile is not supported by this release.
 
-Download `weknora-bridge-1.3.0-plugin.zip` from the [1.3.0 preview release](https://github.com/dewada9/weknora-bridge/releases/tag/1.3.0), extract its three files into `<vault>/.obsidian/plugins/weknora-bridge/`, then follow configuration steps 3–5 below. This release is not listed in the official community directory.
+Open the [official community listing](https://community.obsidian.md/plugins/weknora-bridge) and choose **Add to Obsidian**, then configure the plugin using steps 3–5 below. Alternatively, download `weknora-bridge-1.3.0-plugin.zip` from the [1.3.0 release](https://github.com/dewada9/weknora-bridge/releases/tag/1.3.0) and extract its three files into `<vault>/.obsidian/plugins/weknora-bridge/`.
+
+For a local source build, use steps 1–2 first:
 
 1. Run `npm test` and `npm run build` with Node.js 20+.
 2. Create `<vault>/.obsidian/plugins/weknora-bridge/` and copy only `dist/main.js`, `dist/manifest.json`, and `dist/styles.css` into it.

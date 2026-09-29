@@ -11,9 +11,9 @@
 
 ## 使用
 
-可直接在 [1.3.0 预发布页面](https://github.com/dewada9/weknora-bridge/releases/tag/1.3.0) 下载安装包，解压三个文件到 `.obsidian/plugins/weknora-bridge`。目前尚未上架官方社区目录。
+1.3.0 已通过社区审核。打开 [官方社区页面](https://community.obsidian.md/plugins/weknora-bridge)，点击 **Add to Obsidian** 安装。也可在 [1.3.0 发布页面](https://github.com/dewada9/weknora-bridge/releases/tag/1.3.0) 下载安装包，解压三个文件到 `.obsidian/plugins/weknora-bridge`。
 
-运行 `npm test`、`npm run build`，把 dist 下三个发布文件放入笔记库的 `.obsidian/plugins/weknora-bridge`，启用插件。
+如需从源码构建：运行 `npm test`、`npm run build`，把 dist 下三个发布文件放入笔记库的 `.obsidian/plugins/weknora-bridge`，启用插件。
 
 设置中输入服务地址和知识库 ID，使用“API 密钥”选择或创建密钥，点击“保存并连接”。可随时从命令面板运行“配置连接 / 修复密钥”；凭据丢失不会让设置和右键菜单消失。
 
@@ -23,4 +23,4 @@
 
 不要公开真实的 data.json、密钥、私有服务器地址或知识库资料。备份同步记录后再迁移设备，并在新设备重新设置密钥。开源项目不包含任何真实环境配置。
 
-本版为候选版，尚未提交官方社区目录。发布前需按 [验收清单](docs/acceptance.md) 补全目标服务器和各平台验证。
+社区审核通过不代表兼容所有服务器和平台。使用前请按 [验收清单](docs/acceptance.md) 核验自己的目标服务器。
