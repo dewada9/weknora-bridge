@@ -1,0 +1,15 @@
+{
+  "name": "weknora-bridge",
+  "version": "1.3.0",
+  "private": true,
+  "description": "Publish notes and files to WeKnora, track parsing, and archive completed uploads while preserving document associations.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test *.test.cjs",
+    "build": "node build.cjs",
+    "check": "node --check dist/main.js"
+  }
+}
