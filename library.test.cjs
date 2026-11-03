@@ -89,3 +89,9 @@ test('manual edits arriving during native note rename never become owned content
 test('interrupted rename followed by manual destination edit does not recreate the old note',async()=>{
  const h=harness();await h.run();legacyNotes(h);const rename=h.io.rename;let from,to;h.io.rename=async(a,b)=>{await rename(a,b);from=a;to=b;h.files.set(b,'USER EDIT AFTER CRASH');throw Error('crash');};await assert.rejects(h.run());h.io.rename=rename;await h.run();assert.equal(h.files.get(to),'USER EDIT AFTER CRASH');assert.equal(h.files.has(from),false);await h.run();assert.equal(h.files.has(from),false);
 });
+test('historical entity IDs reused by different documents retain separate note identities',async()=>{
+ const h=harness();await h.run();const source=[...h.files.entries()].find(([p,t])=>p.includes('/实体/')&&t.includes('title: "BCU"'));
+ const text=source[1].replace('source_document_id: "d"','source_document_id: "historic"'),hx=x=>require('crypto').createHash('sha256').update(x).digest('hex').slice(0,20),path='06-自动知识库/实体/'+hx('historic')+'/'+hx('a')+'.md';
+ h.files.set(path,text);h.state.files[path]=lib.hash(path,text);h.state.docs.historic={title:'历史资料'};h.state.notePaths['entity:a']={key:'entity:a',kg:'historic',entity:'a',title:'BCU',documentTitle:'历史资料',path};
+ await h.run();const notes=[...h.files.entries()].filter(([p,t])=>p.includes('/实体/')&&t.includes('title: "BCU"'));assert.equal(notes.length,2);assert.ok(notes.some(([p,t])=>p.includes('历史资料')&&t.includes('source_document_id: "historic"')));assert.ok(notes.some(([p,t])=>p.includes('BMS')&&t.includes('source_document_id: "d"')));
+});

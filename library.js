@@ -34,7 +34,7 @@ function render(s,c){
  validate(s,c);const files={},groups=new Map(),nodes=new Map(s.nodes.map(n=>[n.id,n])),adj=new Map(s.nodes.map(n=>[n.id,[]])),byCategory=new Map();
  const graphPath=kg=>c.canvasPaths?.[kg]||canvasPath(kg,s.documents[kg]?.title);
  const sourcePath=kg=>c.cardPaths?.[kg]||cardPath(kg,s.documents[kg]?.title);
- const entityPath=n=>c.nodePaths?.[n.id]||nodePath(n,s.documents[n.kg]?.title);
+ const entityPath=n=>c.nodePaths?.[n.kg+'/'+n.id]||nodePath(n,s.documents[n.kg]?.title);
  for(const n of s.nodes){if(!groups.has(n.kg))groups.set(n.kg,[]);groups.get(n.kg).push(n);}
  for(const r of s.relations){adj.get(r.source).push(r);if(r.source!==r.target)adj.get(r.target).push(r);}
  let graphs=0,isolated=s.nodes.filter(n=>!adj.get(n.id).length).length;
@@ -76,7 +76,7 @@ function hash(path,text){if(path.endsWith('.canvas')){try{text=JSON.stringify(ca
 function noteIdentity(text){
  const field=name=>{try{return JSON.parse(text.match(new RegExp('^'+name+': (.+)$','m'))?.[1]);}catch{return null;}};
  const kg=field('source_document_id'),entity=field('source_entity_id');if(typeof kg!=='string')return null;
- return {key:(typeof entity==='string'?'entity:':'card:')+(entity||kg),kg,entity:typeof entity==='string'?entity:null,title:field('title')||'未命名资料'};
+ return {key:typeof entity==='string'?'entity:'+kg+'/'+entity:'card:'+kg,kg,entity:typeof entity==='string'?entity:null,title:field('title')||'未命名资料'};
 }
 const noteTarget=r=>r.entity?nodePath({kg:r.kg,id:r.entity,name:r.title},r.documentTitle):cardPath(r.kg,r.title);
 function rewriteTarget(text,from,to,at){
@@ -101,13 +101,15 @@ async function migrateNotes(snapshot,config,state,io,persist,initial){
   else{conflicts.push(m.from);blocked[key]=a===null&&b!==null?m.to:m.from;}
  }
  // Discover previously generated notes using persisted ownership and source metadata.
+ const previousPaths=new Map(Object.values(state.notePaths).map(r=>[r.path,r]));
+ state.notePaths=Object.fromEntries(Object.entries(state.notePaths).filter(([key])=>state.noteMoves[key]));
  for(const path of Object.keys(state.files)){
   if(!path.startsWith(PREFIX+'/资料/')&&!path.startsWith(PREFIX+'/实体/'))continue;
   const text=await io.read(path);if(text===null)continue;let r=noteIdentity(text);
-  if(!r){const kg=Object.keys(documents).find(kg=>legacyCardPath(kg)===path);if(kg)r={key:'card:'+kg,kg,entity:null,title:documents[kg].title};}
+  if(!r){r=previousPaths.get(path);if(r)r={...r,key:r.entity?'entity:'+r.kg+'/'+r.entity:'card:'+r.kg};else{const kg=Object.keys(documents).find(kg=>legacyCardPath(kg)===path);if(kg)r={key:'card:'+kg,kg,entity:null,title:documents[kg].title};}}
   if(!r||!documents[r.kg])continue;r.documentTitle=documents[r.kg].title;
   const old=r.entity?legacyNodePath({kg:r.kg,id:r.entity}):legacyCardPath(r.kg);
-  if(path!==old&&path!==noteTarget(r)&&state.notePaths[r.key]?.path!==path)continue;
+  if(path!==old&&path!==noteTarget(r)&&!previousPaths.has(path))continue;
   state.notePaths[r.key]={...r,path};
  }
  for(const [path,text]of Object.entries(initial)){
@@ -129,7 +131,7 @@ async function migrateNotes(snapshot,config,state,io,persist,initial){
   const m={from,to,record:{...r},hash:hash(from,text),previous:state.files[from],links};state.noteMoves[key]=m;await persist();await io.rename(from,to,text);await finish(key,m);
  }
  if(io.removeEmptyFolder)for(const folder of [...state.emptyEntityFolders]){if(!folder.startsWith(PREFIX+'/实体/')||folder.split('/').length!==3||folder.split('/').includes('..'))throw Error('旧实体目录范围异常');if(await io.removeEmptyFolder(folder)){state.emptyEntityFolders=state.emptyEntityFolders.filter(p=>p!==folder);await persist();}}
- const cardPaths={},nodePaths={};for(const [key,r]of Object.entries(state.notePaths)){if(r.entity)nodePaths[r.entity]=blocked[key]||r.path;else cardPaths[r.kg]=blocked[key]||r.path;}
+ const cardPaths={},nodePaths={};for(const [key,r]of Object.entries(state.notePaths)){if(r.entity)nodePaths[r.kg+'/'+r.entity]=blocked[key]||r.path;else cardPaths[r.kg]=blocked[key]||r.path;}
  return {cardPaths,nodePaths,conflicts};
 }
 async function refresh(snapshot,config,state,io,persist){
