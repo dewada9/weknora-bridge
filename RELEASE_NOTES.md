@@ -6,4 +6,4 @@ Enable “下载原文并显示插图” in settings. Downloads use the existing
 
 Work rotates over at most 20 eligible documents per refresh with a time budget; network/auth/rate-limit failures stop the batch. Disable the switch to stop subsequent writes. Existing cached previews remain readable offline. Originals may also sync through your vault sync provider.
 
-85 automated tests pass. Desktop only; Windows tested. Word pagination is not inferred; unsupported embedded formats are reported. This adds original-image display, not OCR or image vector indexing. No automatic bulk reparse or model calls.
+86 automated tests pass. Desktop only; Windows tested. Word pagination is not inferred; unsupported embedded formats are reported. This adds original-image display, not OCR or image vector indexing. No automatic bulk reparse or model calls.
