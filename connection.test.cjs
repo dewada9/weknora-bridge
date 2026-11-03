@@ -5,6 +5,11 @@ test('connection uses the native vault secret after a fresh process',async()=>{
  const c=await resolveConnection({secretStorage:{getSecret:n=>n==='weknora-api'?'secret':null}},settings);
  assert.deepEqual(c,{base:'https://example.org',kb:'kb',key:'secret'});assert.ok(!JSON.stringify(settings).includes('"secret"'));
 });
+test('public endpoints require HTTPS while private and loopback HTTP remain usable',async()=>{
+ const app={secretStorage:{getSecret:()=> 'secret'}};
+ for(const base of ['http://example.org','http://8.8.8.8'])await assert.rejects(()=>resolveConnection(app,{base,kb:'kb',secretName:'x'}),/HTTPS/);
+ for(const base of ['https://8.8.8.8','http://100.64.0.10:9122','http://127.0.0.1:9122'])assert.equal((await resolveConnection(app,{base,kb:'kb',secretName:'x'})).base,base);
+});
 test('missing secret gives an actionable settings error',async()=>{
  await assert.rejects(()=>resolveConnection({secretStorage:{getSecret:()=>null}},{base:'https://example.org',kb:'kb',secretName:'missing'}),/设置/);
 });

@@ -5,6 +5,15 @@ const notices=[];
 source.require=id=>id==='obsidian'?{Plugin:class{},Modal:class{},Setting:class{},PluginSettingTab:class{},FuzzySuggestModal:class{},TFile,Notice:class{constructor(text){notices.push(text);}}}:id==='./credential'?{credential:async()=>{throw Error('test missing credential');}}:require(id);
 source._compile(fs.readFileSync(source.filename,'utf8'),source.filename);const Plugin=source.exports;
 function setup(){const p=new Plugin();p.data={autoSync:true,autoInbox:true,records:{}};p.inflight=new Set();p.timers=new Map();p.status={setText(){}};p.persist=async()=>{};p.app={metadataCache:{getFileCache:()=>({frontmatter:{}})},vault:{}};return p;}
+test('bulk sync defers extra files before reading or queuing their content',async()=>{
+ const p=setup(),f=new TFile('01-收件箱/待入库/a.pdf');p.inflight=new Set(['busy1','busy2']);let scheduled=0;
+ p.engine={sync:()=>{throw Error('must not queue');}};p.app.vault.readBinary=()=>{throw Error('must not read');};p.schedule=()=>scheduled++;
+ await p.upload(f,true);assert.equal(scheduled,1);assert.equal(p.data.records[f.path],undefined);
+});
+test('connection diagnostic is read only and checks the configured knowledge scope',async()=>{
+ const p=setup();const calls=[];p.config={kb:'kb'};p.api={base:'https://example.org',request:async(method,path)=>{calls.push([method,path]);return {success:true};}};
+ const result=await p.testConnection();assert.equal(result.base,'https://example.org');assert.ok(result.latencyMs>=0);assert.equal(calls.length,1);assert.equal(calls[0][0],'GET');assert.match(calls[0][1],/knowledge-bases\/kb\/knowledge/);
+});
 test('missing credentials do not remove settings, commands or file context menu',async()=>{
  const p=setup(),events=[],commands=[],tabs=[];global.window={setInterval:()=>1};
  p.loadData=async()=>({});p.saveData=async()=>{};p.addSettingTab=x=>tabs.push(x);p.addStatusBarItem=()=>({setText(){}});p.addRibbonIcon=()=>{};p.addCommand=x=>commands.push(x.id);p.registerEvent=()=>{};p.registerInterval=()=>{};

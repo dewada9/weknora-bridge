@@ -1,23 +1,19 @@
-First public preview of WeKnora Bridge for Obsidian desktop.
+# WeKnora Bridge 1.3.1
 
-### Included
+- Public domain/IP endpoints require HTTPS; private/loopback HTTP remains supported. Normal certificate verification is retained.
+- Add a read-only connection test with latency and actionable DNS, port, TLS, key, permission, upload-size, rate-limit and reverse-proxy errors.
+- Limit active file sync work to two files before reading contents. Connection setup is bounded to 15 seconds; request limit remains 90 seconds.
+- Preserve stable document associations, guarded updates, uncertain-write reconciliation and manual-edit protection.
+- 56 automated tests pass; English and Chinese setup instructions are updated.
 
-- Native Obsidian SecretStorage configuration and a recovery/settings entry that remains available when a key is missing.
-- Explicit note/file publication, parsing status, guarded updates and stable document associations.
-- Optional completed-file archiving with collision protection and interrupted-move recovery.
-- Optional source-linked catalog/graph import.
-- MIT license, source, documentation and 51 automated tests.
+## Install / upgrade
 
-### Install
+Use the [official community listing](https://community.obsidian.md/plugins/weknora-bridge), or Settings → Community plugins → Check for updates. Manual installation: extract `main.js`, `manifest.json` and `styles.css` from `weknora-bridge-1.3.1-plugin.zip` into `<vault>/.obsidian/plugins/weknora-bridge/`. Preserve existing `data.json` and configure your own secret. Do not enable a second copy alongside a custom deployment.
 
-Requires Obsidian 1.11.4+ on desktop. Download `weknora-bridge-1.3.0-plugin.zip`, extract `main.js`, `manifest.json` and `styles.css` into `<vault>/.obsidian/plugins/weknora-bridge/`, enable the plugin and configure your own server, knowledge-base ID and scoped key. Automatic features are off by default. Do not install a second copy over an existing deployment without backing up and migrating its association records.
+Obsidian 1.11.4+ desktop required. Windows tested; macOS/Linux unverified; mobile disabled. Continuous guarded updates and graph import require the documented [server extensions](https://github.com/dewada9/weknora-bridge/blob/main/docs/server-compatibility.md). Public service deployment and certificates are separate. Directory listing does not imply separate manual review of this update.
 
-### Compatibility limits
-
-This is a **preview**, not an official community-directory release. Windows has been tested; other platforms are not certified and mobile is disabled. Continuous in-place updates require the documented guarded replacement API extension. Catalog/graph import requires an authenticated snapshot extension. These extensions are not bundled with this client; stock WeKnora installations must verify the [API contract](https://github.com/dewada9/weknora-bridge/blob/main/docs/server-compatibility.md) before enabling the relevant features.
-
-No private deployment configuration, credentials, real vault contents or runtime association files are included. SHA256 values for the source and plugin archives are in `checksums.json`.
+No private addresses, keys, association records or vault contents are included. Archive SHA-256 values are provided in `checksums.json`.
 
 ---
 
-首个公开预览版：支持原生密钥存储、笔记发布、同 ID 更新、解析完成后归档及断点恢复。请先阅读中英文 README 和服务器接口要求；本版尚未上架 Obsidian 官方社区，不能视为兼容所有原版 WeKnora 的即装即用版本。
+1.3.1：新增公网 HTTPS 校验、连接测试和明确报错，限制批量同步并发、缩短建连等待。已有社区版通过「检查更新」升级，请保留原同步关联。公网服务需自行部署，服务器扩展要求见接口文档。

@@ -42,6 +42,8 @@ class StatusModal extends Modal{
  onOpen(){this.render();}
  render(){const p=this.plugin;this.contentEl.empty();this.contentEl.createEl('h2',{text:'上传与同步状态'});
   this.contentEl.createEl('p',{text:'草稿留在本地；待入库文件自动上传。已发布文件修改后更新原文档。删除本地文件不会删除远端文档。'});
+  this.contentEl.createEl('p',{text:'当前服务：'+(p.data.connection?.base||'未配置')+'；正在处理 '+p.inflight.size+' 个文件'});
+  const check=this.contentEl.createEl('button',{text:'测试连接'});check.onclick=async()=>{check.disabled=true;try{const r=await p.testConnection();new Notice('知识库连接正常：'+r.latencyMs+' ms');}catch(e){new Notice(e.message,10000);}finally{check.disabled=false;}};
   this.contentEl.createEl('button',{text:'导入电脑文件'}).onclick=()=>p.pickExternalFiles();
   this.contentEl.createEl('button',{text:'重试待处理任务'}).onclick=async()=>{for(const r of Object.values(p.data.records))delete r.nextRetryAt;await p.persist();p.scan();new Notice('已安排重试');};
   const refresh=this.contentEl.createEl('button',{text:'刷新解析状态'});refresh.onclick=async()=>{refresh.disabled=true;try{for(const rec of Object.values(p.data.records)){if(rec.id)rec.status=(await p.api.get(rec.id)).parse_status;}await p.persist();this.render();}catch(e){new Notice(e.message);refresh.disabled=false;}};
@@ -54,7 +56,7 @@ class Settings extends PluginSettingTab{
  display(){const p=this.plugin;this.containerEl.empty();this.containerEl.createEl('h2',{text:'WeKnora 知识库'});
   this.containerEl.createEl('p',{text:p.connectionError||'密钥使用 Obsidian 原生密钥存储；插件配置只保存密钥名称。'});
   const connection={...(p.data.connection||{})};
-  new Setting(this.containerEl).setName('服务地址').setDesc('WeKnora 根地址；仅向此地址发送所选密钥和发布的文件。').addText(t=>t.setPlaceholder('https://knowledge.example.org').setValue(connection.base||'').onChange(v=>connection.base=v.trim()));
+  new Setting(this.containerEl).setName('服务地址').setDesc('支持公网 HTTPS 域名或 IP（证书须匹配）；私有网络可用 HTTP。填写根地址，已有文档关联会保留。').addText(t=>t.setPlaceholder('https://knowledge.example.org').setValue(connection.base||'').onChange(v=>connection.base=v.trim()));
   new Setting(this.containerEl).setName('知识库 ID').addText(t=>t.setValue(connection.kb||'').onChange(v=>connection.kb=v.trim()));
   if(SecretComponent)new Setting(this.containerEl).setName('API 密钥').setDesc('选择已有密钥，或在此创建新密钥。更换电脑后需要在该电脑重新配置。').addComponent(el=>new SecretComponent(this.app,el).setValue(connection.secretName||'').onChange(v=>connection.secretName=v||''));
   new Setting(this.containerEl).setName('保存并测试连接').setDesc('连接失败时菜单仍然可用。已有同步记录时禁止直接切换知识库。').addButton(b=>b.setButtonText('保存并连接').onClick(async()=>{b.setDisabled(true);try{await p.connect(connection,true);new Notice('连接成功，配置已保存');this.display();}catch(e){new Notice(e.message,10000);}finally{b.setDisabled(false);}}));
@@ -84,6 +86,7 @@ module.exports=class WeKnoraPlugin extends Plugin{
   this.addCommand({id:'choose-upload',name:'选择本地文件上传',callback:()=>new FilePicker(this).open()});
   this.addCommand({id:'search',name:'检索知识库',callback:()=>new SearchModal(this).open()});
   this.addCommand({id:'status',name:'查看上传状态',callback:()=>new StatusModal(this).open()});
+  this.addCommand({id:'test-connection',name:'测试知识库连接',callback:async()=>{try{const r=await this.testConnection();new Notice('知识库连接正常：'+r.latencyMs+' ms');}catch(e){new Notice(e.message,10000);}}});
   this.addCommand({id:'library-status',name:'查看自动整理状态',callback:()=>new LibraryStatus(this).open()});
   this.addCommand({id:'library-refresh',name:'立即刷新自动目录与图谱',callback:()=>this.refreshLibrary(true)});
   this.addCommand({id:'mark-auto',name:'开启当前笔记自动同步',callback:async()=>{const f=this.app.workspace.getActiveFile();if(f?.extension!=='md')return new Notice('请先打开 Markdown 笔记');await this.app.fileManager.processFrontMatter(f,fm=>{fm.weknora_sync=true;});new Notice('已标记自动同步；可在插件设置中整体暂停');this.schedule(f);}});
@@ -100,6 +103,11 @@ module.exports=class WeKnoraPlugin extends Plugin{
   await this.connect().catch(e=>new Notice('WeKnora：'+e.message,10000));
  }
  openSettings(){this.app.setting.open();this.app.setting.openTabById(this.manifest.id);}
+ async testConnection(){
+  if(!this.api||!this.config)throw Error('请先在 WeKnora 设置中配置连接');
+  const started=Date.now();await this.api.request('GET','/api/v1/knowledge-bases/'+encodeURIComponent(this.config.kb)+'/knowledge?page=1&page_size=1');
+  return {base:this.api.base,latencyMs:Date.now()-started};
+ }
  async connect(settings=this.data.connection,probe=false){
   if(this.connecting)throw Error('连接处理中，请稍后重试');if(this.closed)throw Error('插件已关闭');if(this.inflight.size||this.libraryRunning)throw Error('请等待当前同步完成后重连');this.connecting=true;
   let candidate;
@@ -157,7 +165,9 @@ module.exports=class WeKnoraPlugin extends Plugin{
   if(this.connecting||this.movesReady===false){if(!automatic)new Notice('连接或归档恢复尚未完成，请查看设置和同步状态');return;}
   if(!this.engine){if(!automatic){new Notice('请先在 WeKnora 设置中配置连接');this.openSettings();}return;}
   if(!(file instanceof TFile)||!supported(file.path)||generated(file.path))return new Notice('请选择笔记或支持的文档；自动生成的目录与图谱不上传');
-  const path=file.path;if(this.inflight.has(path)||this.closed)return;this.inflight.add(path);this.status.setText('WeKnora 正在上传…');
+  const path=file.path;if(this.inflight.has(path)||this.closed)return;
+  if(this.inflight.size>=2){if(automatic)this.schedule(file);else new Notice('当前有文件正在同步，请稍后重试；自动任务会依次处理');return;}
+  this.inflight.add(path);this.status.setText('WeKnora 正在上传…');
   const mtime=file.stat.mtime;
   try{const bytes=Buffer.from(await this.app.vault.readBinary(file));const guard=()=>!this.closed&&file.path===path&&file.stat.mtime===mtime&&this.app.vault.getAbstractFileByPath(path)===file&&(!automatic||this.eligible(file));const r=await this.engine.sync(path,bytes,guard);if(r.action==='deferred'){if(automatic){this.status.setText('WeKnora 等待文件稳定');this.schedule(file);}else{this.status.setText('WeKnora 本次上传已取消');if(!this.closed)new Notice('文件已修改或移动，本次手动上传已取消；请稳定后重新执行上传。',8000);}return;}const rec=this.data.records[path]||Object.values(this.data.records).find(x=>x.id===r.id);if(!rec)throw Error("同步记录暂不可用，请刷新状态");rec.mtime=mtime;rec.autoManaged=true;for(const key of ['error','errorMtime','nextRetryAt','failures'])delete rec[key];await this.persist();await this.finishIntake(file);this.status.setText('WeKnora '+(r.parse_status==='completed'?'已入库':'等待解析'));if(!automatic)new Notice(r.action==='unchanged'?'原文未变化；当前状态：'+r.parse_status:'已上传到 NAS，服务器正在解析。可在「查看上传状态」中刷新。',7000);
   }catch(e){if(file.path!==path||this.closed){this.schedule(file);return;}const rec=this.data.records[path]||(this.data.records[path]={});recordFailure(rec,e.message,mtime);await this.persist().catch(()=>{});this.status.setText('WeKnora 待处理');if(!automatic)new Notice(e.message,10000);}finally{this.inflight.delete(path);}

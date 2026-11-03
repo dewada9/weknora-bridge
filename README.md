@@ -2,7 +2,7 @@
 
 A desktop Obsidian integration for publishing selected notes and files to your own WeKnora knowledge base. Independent community project; not an official Obsidian or Tencent product.
 
-**Status: listed in the Obsidian Community directory.** Version 1.3.0 passed the directory review. Windows desktop has been tested; macOS/Linux have not been verified. This project does not include a hosted service, keys, or a private deployment.
+**Status: listed in the Obsidian Community directory.** Directory inclusion does not imply that each update has been manually reviewed by Obsidian staff. Windows desktop has been tested; macOS/Linux have not been verified. This project does not include a hosted service, keys, or a private deployment.
 
 ## What it does
 
@@ -25,7 +25,7 @@ If you only run stock WeKnora, validate the API contract before enabling continu
 
 Requires **Obsidian 1.11.4+ on desktop**. Mobile is not supported by this release.
 
-Open the [official community listing](https://community.obsidian.md/plugins/weknora-bridge) and choose **Add to Obsidian**, then configure the plugin using steps 3–5 below. Alternatively, download `weknora-bridge-1.3.0-plugin.zip` from the [1.3.0 release](https://github.com/dewada9/weknora-bridge/releases/tag/1.3.0) and extract its three files into `<vault>/.obsidian/plugins/weknora-bridge/`.
+Open the [official community listing](https://community.obsidian.md/plugins/weknora-bridge) and choose **Add to Obsidian**, then configure the plugin using steps 3–5 below. Alternatively, download `weknora-bridge-1.3.1-plugin.zip` from the [latest release](https://github.com/dewada9/weknora-bridge/releases/latest) and extract its three files into `<vault>/.obsidian/plugins/weknora-bridge/`.
 
 For a local source build, use steps 1–2 first:
 
@@ -44,6 +44,14 @@ On another computer, configure its local secret again. Do not copy a live `data.
 Editing a published file updates the same document. Obsidian's `fileManager.renameFile` handles link updates according to your Obsidian preference; keep automatic link updating enabled. Moving a document updates its path metadata on the next sync and can trigger one further server parse. Failed parsing, concurrent edits and conflicts stay visible instead of being moved prematurely.
 
 The app must be open to upload. Offline requests back off; reopening resumes from saved records. Deleting a local file does **not** delete its remote document. This is publication plus optional derived-data import, **not** a two-way editor for remote originals.
+
+## Public HTTPS and connection checks (1.3.1)
+
+Public domains and IPs require HTTPS with a trusted certificate matching the address. Private/loopback IPs may use HTTP. Certificate verification is never disabled. Keep the existing knowledge-base ID and secret when changing the root URL; Save and connect checks existing remote source identity before switching.
+
+Your reverse proxy must forward the documented `/api/v1/` endpoints and `X-API-Key`, permit uploads and guarded updates, and set adequate request limits. A browser login page alone cannot serve as the API endpoint. Server deployment and certificates are not bundled with this plugin.
+
+Run **测试知识库连接** (Test knowledge-base connection), or use Test connection in upload status, for a read-only latency check. Errors distinguish DNS, ports, TLS, keys, permissions, upload size, rate limits and reverse proxies. Batch sync processes at most two files; connection setup is limited to 15 seconds and requests to 90 seconds. Unknown writes remain protected against blind retries.
 
 ## Privacy and network use
 

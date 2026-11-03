@@ -11,7 +11,7 @@
 
 ## 使用
 
-1.3.0 已通过社区审核。打开 [官方社区页面](https://community.obsidian.md/plugins/weknora-bridge)，点击 **Add to Obsidian** 安装。也可在 [1.3.0 发布页面](https://github.com/dewada9/weknora-bridge/releases/tag/1.3.0) 下载安装包，解压三个文件到 `.obsidian/plugins/weknora-bridge`。
+本项目已收录社区目录；不代表每次更新都经 Obsidian 人工复审。打开 [官方社区页面](https://community.obsidian.md/plugins/weknora-bridge)，点击 **Add to Obsidian** 安装。也可在 [最新发布页面](https://github.com/dewada9/weknora-bridge/releases/latest) 下载安装包，解压三个文件到 `.obsidian/plugins/weknora-bridge`。
 
 如需从源码构建：运行 `npm test`、`npm run build`，把 dist 下三个发布文件放入笔记库的 `.obsidian/plugins/weknora-bridge`，启用插件。
 
@@ -24,3 +24,20 @@
 不要公开真实的 data.json、密钥、私有服务器地址或知识库资料。备份同步记录后再迁移设备，并在新设备重新设置密钥。开源项目不包含任何真实环境配置。
 
 社区审核通过不代表兼容所有服务器和平台。使用前请按 [验收清单](docs/acceptance.md) 核验自己的目标服务器。
+
+## 日常使用与公网连接（1.3.1）
+
+1. 普通草稿放在笔记目录，未标记且未发布的草稿不会自动上传。
+2. 把资料放进设置中的待入库目录，或运行「导入电脑文件到待入库」。开启自动上传后会逐步处理；单文件最多 20 MiB。
+3. 单篇笔记可右键「上传 / 更新到 WeKnora」，或设置布尔属性 `weknora_sync: true`。自动发布需开启总开关，`false` 可退出自动发布。
+4. 运行「查看上传状态」。上传成功后仍需等待解析；“已入库，可检索”才表示完成。开启归档后，解析完成且未修改的文件会移到已入库目录。
+5. 编辑已发布笔记会更新同一文档；Obsidian 必须保持打开。断网保留本地，恢复后重试。
+6. 运行「检索知识库」查资料；运行「测试知识库连接」查看只读请求耗时或错误原因。
+
+公网填写 HTTPS 根地址，例如 `https://knowledge.example.org`；也支持有效 IP 证书覆盖的 HTTPS IP 地址。证书须受信任并匹配地址，插件不绕过验证。公网 HTTP 会被拒绝，私有 IP/回环 HTTP 继续可用。
+
+从私有网络迁移时，保留知识库 ID 与密钥，只改服务地址并点「保存并连接」；插件会检查已有远端来源关联。反向代理需转发相应 `/api/v1/` 接口和 `X-API-Key`，允许上传、条件式更新，并设置足够的上传大小和超时。只有网页登录页面不能替代 API 入口。
+
+公网部署和证书需由服务器管理员配置。批量同步最多同时处理两个文件，建连最多等待 15 秒，请求最多等待 90 秒。已有自定义部署不要再同时启用第二份社区插件；先备份并迁移关联状态。
+
+已有社区版可在「设置 → 第三方插件 → 检查更新」升级。
