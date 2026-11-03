@@ -44,6 +44,14 @@ class Api {
    req.on('close',()=>{clearTimeout(timer);clearTimeout(connectTimer);});req.on('error',e=>reject(networkFailure(e,connected)));req.end(data);
   });
  }
+ download(id,limit=25*1024*1024){
+  return new Promise((resolve,reject)=>{const u=new URL('/api/v1/knowledge/'+encodeURIComponent(id)+'/download',this.base);const req=(u.protocol==='https:'?https:http).get(u,{agent:this.agent,headers:{'X-API-Key':this.config.key,'Accept-Encoding':'identity'}},res=>{
+   if(res.statusCode!==200){res.resume();reject(httpFailure(res.statusCode));return;}
+   if(res.headers['content-encoding']&&res.headers['content-encoding']!=='identity'){res.resume();reject(Error('原文下载编码不支持'));return;}
+   if(Number(res.headers['content-length'])>limit){res.resume();reject(Error('原文过大'));return;}
+   let size=0;const parts=[];res.on('data',b=>{size+=b.length;if(size>limit){reject(Error('原文过大'));req.destroy();}else parts.push(b);});res.on('end',()=>{if(size<=limit)resolve(Buffer.concat(parts));});res.on('error',()=>reject(Object.assign(Error('原文下载中断'),{networkError:true})));
+  });const timer=setTimeout(()=>req.destroy(Error('原文下载超时')),90000);req.on('close',()=>clearTimeout(timer));req.on('error',()=>reject(Object.assign(Error('原文下载连接失败'),{networkError:true})));});
+ }
  async get(id){return (await this.request('GET','/api/v1/knowledge/'+encodeURIComponent(id))).data;}
  async updateTitle(id,title){return (await this.request('PUT','/api/v1/knowledge/'+encodeURIComponent(id),{title})).data;}
  async find(source){let found=[];for(let page=1;page<=100;page++){const r=await this.request('GET',`/api/v1/knowledge-bases/${this.kb}/knowledge?page=${page}&page_size=100`);const rows=r.data;if(!Array.isArray(rows))throw Error('文件列表格式错误');found.push(...rows.filter(x=>x.metadata?.obsidian_source===source));if(page*100>=r.total||rows.length<100)return found;}throw Error('文档过多，请在网页核对上传状态');}

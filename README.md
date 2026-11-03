@@ -80,3 +80,7 @@ Generated Canvas files use the document title plus a short ID suffix. Unchanged 
 ### Readable cards and entities (1.3.4)
 
 Source-card filenames, entity parent folders and entity-note filenames now use document/entity titles plus short stable suffixes. Owned legacy notes are renamed with backlinks updated; manual edits remain protected. Only emptied old generated entity folders are removed.
+
+## Original images and PDF previews (1.3.5)
+
+Enable **下载原文并显示插图** in settings to cache completed PDFs, DOCX originals and raster images. Open **06-自动知识库/原文插图/00-原文插图** or use the media link in a source card. Originals and images live under **99-附件/WeKnora原文**, remain private vault files, and may be synced by your vault sync service. A single source is limited to 25 MiB; later batches resume automatically. No model calls, bulk reparsing or OCR indexing are performed. Unreferenced DOCX embedded objects are clearly labeled. Never publish your vault, cache or data.json with the plugin.

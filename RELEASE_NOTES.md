@@ -1,13 +1,9 @@
-# WeKnora Bridge 1.3.4
+# WeKnora Bridge 1.3.5
 
-Complete readable naming across the automatic library: source cards use document titles, entity folders use source document titles, and entity notes use entity names. Short stable suffixes distinguish duplicates; original source IDs remain intact. Canvas title-first names from 1.3.3 remain supported.
+Optional original media cache: completed PDFs display in Obsidian with original pages and vector diagrams; DOCX embedded raster images display in first-reference order, with unreferenced objects labeled separately. Original files remain available locally. Source cards link to the prepared media pages.
 
-Owned legacy files migrate through Obsidian native rename with backlink updates, including shortened Markdown links without extensions. Journals recover interrupted migrations. Manually edited notes retain their bodies and remain protected; unknown destinations are never overwritten. Only emptied old generated entity folders are removed.
+Enable “下载原文并显示插图” in settings. Downloads use the existing authenticated knowledge API, verify original MD5 and current knowledge scope/version, refuse redirects, and are capped at 25 MiB per original. Cache files never upload back to WeKnora. Changed local files are preserved. ZIP extraction rejects unsafe paths, encryption, unsupported containers and oversized expanded content.
 
-75 automated tests pass, including concurrent manual edits during rename and edits after interrupted migration. Existing users can update through Community plugins; preserve data.json. Do not install a second copy alongside a custom deployment.
+Work rotates over at most 20 eligible documents per refresh with a time budget; network/auth/rate-limit failures stop the batch. Disable the switch to stop subsequent writes. Existing cached previews remain readable offline. Originals may also sync through your vault sync provider.
 
-Desktop Obsidian 1.11.4+ required. Windows tested; macOS/Linux unverified; mobile disabled. Graph import requires the documented authenticated snapshot extension. Release assets contain no private deployment data or credentials.
-
----
-
-补齐资料、实体文件夹和实体笔记的可读命名，不再只改简图。原生重命名更新链接，保留来源身份、手工正文和中断恢复状态；仅清理已空的旧自动目录。请保留原 data.json。
+85 automated tests pass. Desktop only; Windows tested. Word pagination is not inferred; unsupported embedded formats are reported. This adds original-image display, not OCR or image vector indexing. No automatic bulk reparse or model calls.

@@ -44,6 +44,7 @@ function render(s,c){
   const lines=[`# ${plain(title)}`,'',`[在 WeKnora 查看原文](${url})`,'',`- 自动分类：${cat}`,`- 解析状态：${plain(d.parse_status)}`,`- 文档 ID：\`${kg}\``,`- 当前导出包含 ${ns.length} 个实体。`,''];
   if(ready&&ns.length)lines.push(wiki(graphPath(kg),'打开精简关系图'),'', '简图显示一个中心及最多六个邻居；点击实体查看属性、关系和来源分块。');
   else lines.push(ready?'本次导出没有实体：需核对文档是否适合抽取、图谱配置与处理结果。':'文档尚未完成解析，本轮不更新其简图，保留已有本地内容。');
+  if(c.mediaPaths?.[kg])lines.push('',wiki(c.mediaPaths[kg],'查看原文插图 / PDF预览'),'');
   lines.push('','> 自动抽取未独立复核；工程结论需要回到原文。分类依据标题规则，无法确定的进入“待分类”。','',wiki(PREFIX+'/00-自动知识库.md','返回自动资料导航'));
   files[sourcePath(kg)]=note({title,source_document_id:kg,领域:cat,parse_status:d.parse_status||'unknown',验证状态:'自动生成，待核对'},lines.join('\n'));
   if(!ready||!ns.length)continue;

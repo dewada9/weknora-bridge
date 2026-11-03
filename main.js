@@ -4,6 +4,7 @@ const {Api}=require('./api');
 const {resolveConnection}=require('./connection');
 const {archiveCompleted,recoverMoves,validFolders}=require('./archive');
 const library=require('./library');
+const media=require('./media');
 class LibraryStatus extends Modal{
  constructor(plugin){super(plugin.app);this.plugin=plugin;}
  onOpen(){const p=this.plugin,s=p.data.library||{};this.contentEl.createEl('h2',{text:'自动目录与图谱'});
@@ -11,6 +12,7 @@ class LibraryStatus extends Modal{
   for(const text of ['自动刷新：'+(p.data.autoLibrary?'开启':'暂停'),'最近成功：'+(s.lastSuccess?new Date(s.lastSuccess).toLocaleString():'尚未成功'),'服务端图谱：'+(s.snapshotAt?new Date(s.snapshotAt).toLocaleString():'尚未获取'),'当前资料：'+(s.documents??'未知'),'状态：'+(s.error||'正常')])this.contentEl.createEl('p',{text});
   this.contentEl.createEl('button',{text:'立即刷新'}).onclick=async()=>{await p.refreshLibrary(true);this.close();new LibraryStatus(p).open();};
   this.contentEl.createEl('button',{text:'打开自动知识库'}).onclick=()=>{const f=p.app.vault.getAbstractFileByPath(library.PREFIX+'/00-自动知识库.md');if(f)p.app.workspace.getLeaf(false).openFile(f);this.close();};
+  const m=p.data.media||{};this.contentEl.createEl('p',{text:'原文插图：'+(p.data.autoMedia?'开启':'关闭')+' · 已缓存 '+Object.keys(m.docs||{}).length+' 份 · 失败 '+(m.errors?.length||0)+' 份'});for(const e of (m.errors||[]).slice(0,10))this.contentEl.createEl('p',{text:e.error});
   if(s.conflicts?.length){this.contentEl.createEl('h3',{text:'保留了手工修改的文件'});for(const name of s.conflicts)this.contentEl.createEl('p',{text:name});}
  }
  onClose(){this.contentEl.empty();}
@@ -68,6 +70,7 @@ class Settings extends PluginSettingTab{
   new Setting(this.containerEl).setName('自动上传与更新').setDesc('处理待入库文件、已发布文件及 weknora_sync: true 的笔记。保存后等待 15 秒；失败逐步延迟重试。Obsidian 关闭时暂停。').addToggle(t=>t.setValue(p.data.autoSync).onChange(async v=>{p.data.autoSync=v;await p.persist();if(v)p.scan();}));
   new Setting(this.containerEl).setName('待入库目录自动上传').setDesc(p.data.inboxFolder+'；普通草稿不上传，weknora_sync: false 可单篇退出。').addToggle(t=>t.setValue(p.data.autoInbox).onChange(async v=>{p.data.autoInbox=v;await p.persist();if(v)p.scan();}));
   new Setting(this.containerEl).setName('自动整理远端目录和图谱').setDesc('每 15 分钟检查一次，只更新自动目录中的未修改文件；不额外调用模型。').addToggle(t=>t.setValue(p.data.autoLibrary).onChange(async v=>{p.data.autoLibrary=v;await p.persist();if(v)p.refreshLibrary();}));
+  new Setting(this.containerEl).setName('下载原文并显示插图').setDesc('按现有权限下载已解析PDF、Word与图片到本机附件；PDF直接预览，Word展示内嵌图片。单份最多25MiB；生成文件不回传，手工修改受保护。').addToggle(t=>t.setValue(!!p.data.autoMedia).onChange(async v=>{p.data.autoMedia=v;await p.persist();if(v)p.refreshLibrary(true);}));
   new Setting(this.containerEl).setName('自动整理状态').addButton(b=>b.setButtonText('查看状态').onClick(()=>new LibraryStatus(p).open()));
   new Setting(this.containerEl).setName('文件上传 / 更新').addButton(b=>b.setButtonText('选择文件').onClick(()=>new FilePicker(p).open()));
   new Setting(this.containerEl).setName('查看任务和解析状态').addButton(b=>b.setButtonText('查看状态').onClick(()=>new StatusModal(p).open()));
@@ -75,7 +78,7 @@ class Settings extends PluginSettingTab{
 }
 module.exports=class WeKnoraPlugin extends Plugin{
  async onload(){
-  this.data=Object.assign({autoSync:false,autoInbox:false,autoLibrary:false,autoMove:false,inboxFolder:INBOX,completedFolder:'04-资料索引/已入库',connection:{},library:{},records:{}},await this.loadData());this.saveTail=Promise.resolve();this.timers=new Map();this.inflight=new Set();this.managedMoves=new Set();this.closed=false;this.movesReady=false;
+  this.data=Object.assign({autoSync:false,autoInbox:false,autoLibrary:false,autoMedia:false,autoMove:false,inboxFolder:INBOX,completedFolder:'04-资料索引/已入库',connection:{},library:{},records:{}},await this.loadData());this.saveTail=Promise.resolve();this.timers=new Map();this.inflight=new Set();this.managedMoves=new Set();this.closed=false;this.movesReady=false;
   for(const rec of Object.values(this.data.records))if(rec.id&&rec.source&&rec.autoManaged===undefined)rec.autoManaged=true;
   this.addSettingTab(new Settings(this.app,this));this.status=this.addStatusBarItem();this.status.setText('WeKnora 待连接');this.status.onclick=()=>new StatusModal(this).open();
   this.addCommand({id:'connection-settings',name:'配置连接 / 修复密钥',callback:()=>this.openSettings()});
@@ -150,6 +153,15 @@ module.exports=class WeKnoraPlugin extends Plugin{
   const run=this.engine.tail.then(()=>archiveCompleted(path,{...this.archiveOptions(),guard:()=>!this.closed&&this.data.autoMove&&this.eligible(file)&&file.path===path&&file.stat.mtime===mtime}));this.engine.tail=run.catch(()=>{});
   try{const target=await run;if(target)this.schedule(file);}catch(e){if(Object.values(this.data.records).some(r=>r.moveTo))this.movesReady=false;throw e;}
  }
+ async refreshMedia(){
+  const docs=[];let total=null;for(let page=1;page<=20;page++){const r=await this.api.request('GET','/api/v1/knowledge-bases/'+encodeURIComponent(this.config.kb)+'/knowledge?page_size=100&page='+page);if(!Array.isArray(r.data)||!Number.isInteger(r.total)||total!==null&&total!==r.total)throw Error('原文目录变化，稍后重试');total=r.total;docs.push(...r.data);if(docs.length===total)break;if(page===20||r.data.length<100)throw Error('原文目录不完整');}
+  const vault=this.app.vault,io={read:async path=>await vault.adapter.exists(path)?Buffer.from(await vault.adapter.readBinary(path)):null,write:async(path,bytes,expected)=>{
+   if(this.closed)throw Error('同步已暂停');await this.ensureFolder(path.slice(0,path.lastIndexOf('/')));const f=vault.getAbstractFileByPath(path);
+   if(f instanceof TFile){if(!path.endsWith('.md'))throw Error('保留已有附件');await vault.process(f,current=>{if(expected===null||!Buffer.from(current).equals(expected))throw Error('文件正在修改');return bytes.toString('utf8');});}
+   else if(expected===null)await vault.createBinary(path,bytes);else throw Error('文件缓存未就绪');
+  }};
+  return media.syncDocuments(docs,{kb:this.config.kb,state:this.data.media||(this.data.media={}),api:this.api,io,save:()=>this.persist(),guard:()=>!this.closed&&this.data.autoMedia});
+ }
  async removeEmptyLibraryFolder(path){
   if(this.closed)throw Error('插件已暂停');const vault=this.app.vault,folder=vault.getAbstractFileByPath(path);if(!folder)return true;
   if(!Array.isArray(folder.children)||folder.children.length)return false;
@@ -175,7 +187,9 @@ module.exports=class WeKnoraPlugin extends Plugin{
     const f=vault.getAbstractFileByPath(path);if(f instanceof TFile)await vault.process(f,current=>{if(current!==expected)throw Error('文件正在编辑，稍后重试');return text;});
     else if(expected===null)await vault.create(path,text);else throw Error('文件缓存尚未就绪，稍后重试');
    }};
-   const result=await library.refresh(snapshot,{base:this.api.base,kb:this.config.kb},state,io,()=>this.persist());
+   if(this.data.autoMedia)await this.refreshMedia();
+   const mediaPaths=Object.fromEntries(Object.entries(this.data.media?.docs||{}).map(([id,d])=>[id,d.note]));
+   const result=await library.refresh(snapshot,{base:this.api.base,kb:this.config.kb,mediaPaths},state,io,()=>this.persist());
    this.libraryStatus?.setText(result.conflicts.length?'知识目录有冲突':'知识目录 '+result.documents+' 份');
    if(manual)new Notice('自动目录已刷新：'+result.documents+' 份资料，更新 '+result.written+' 个文件，冲突 '+result.conflicts.length+' 个');
    else if(result.conflicts.length&&previous!==JSON.stringify([state.error,state.conflicts]))new Notice('自动目录保留了手工修改，请在「查看自动整理状态」中核对。',8000);

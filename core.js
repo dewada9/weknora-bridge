@@ -3,7 +3,7 @@ const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const INBOX='01-收件箱/待入库';
 const supported=path=>/\.(md|txt|pdf|docx|doc|png|jpe?g|webp)$/i.test(path);
 const safePath=path=>typeof path==='string'&&!/^[\/\\]|[\\\x00-\x1f]/.test(path)&&path.split('/').every(p=>p&&p!=='.'&&p!=='..');
-const generated=path=>path.split('/').some(p=>p.startsWith('.')||['90-模板','05-WeKnora图谱','06-自动知识库','98-归档'].includes(p))||/\.sync-conflict-/i.test(path);
+const generated=path=>path.startsWith('99-附件/WeKnora原文/')||path.split('/').some(p=>p.startsWith('.')||['90-模板','05-WeKnora图谱','06-自动知识库','98-归档'].includes(p))||/\.sync-conflict-/i.test(path);
 const autoEligible=(path,frontmatter,enabled,record={},inboxEnabled=true,inbox=INBOX)=>enabled===true&&safePath(path)&&supported(path)&&!generated(path)&&frontmatter?.weknora_sync!==false&&((/\.md$/i.test(path)&&frontmatter?.weknora_sync===true)||record.autoManaged===true||(inboxEnabled&&path.startsWith(inbox+'/')));
 const retryReady=(record,mtime,now=Date.now())=>!record?.error||record.errorMtime!==mtime||!record.nextRetryAt||record.nextRetryAt<=now;
 function recordFailure(record,message,mtime,now=Date.now()){

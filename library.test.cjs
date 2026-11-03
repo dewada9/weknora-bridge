@@ -95,3 +95,5 @@ test('historical entity IDs reused by different documents retain separate note i
  h.files.set(path,text);h.state.files[path]=lib.hash(path,text);h.state.docs.historic={title:'历史资料'};h.state.notePaths['entity:a']={key:'entity:a',kg:'historic',entity:'a',title:'BCU',documentTitle:'历史资料',path};
  await h.run();const notes=[...h.files.entries()].filter(([p,t])=>p.includes('/实体/')&&t.includes('title: "BCU"'));assert.equal(notes.length,2);assert.ok(notes.some(([p,t])=>p.includes('历史资料')&&t.includes('source_document_id: "historic"')));assert.ok(notes.some(([p,t])=>p.includes('BMS')&&t.includes('source_document_id: "d"')));
 });
+
+test('source cards link only to prepared original media pages',()=>{const f=lib.render(fixture(),{base:'https://example.org',kb:'kb',mediaPaths:{d:'06-自动知识库/原文插图/source.md'}});const card=Object.entries(f).find(([p])=>p.includes('/资料/'))[1];assert.match(card,/原文插图\/source.md/);});
