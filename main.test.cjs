@@ -63,3 +63,9 @@ test('external import preserves existing file, skips unsupported and oversized i
  assert.equal(typeof p.importFiles,'function');await p.importFiles([input('a.pdf'),input('x.xlsm'),{...input('big.pdf'),size:21*1024*1024}]);
  assert.deepEqual(written,['01-收件箱/待入库/a (2).pdf']);
 });
+
+test('empty library folder cleanup uses nonrecursive removal and preserves new contents',async()=>{
+ const os=require('os');const root=fs.mkdtempSync(path.join(os.tmpdir(),'weknora-empty-'));const p=setup();
+ const folder={children:[]};p.app.vault={getAbstractFileByPath:()=>folder,adapter:{getFullPath:()=>root}};
+ try{fs.writeFileSync(path.join(root,'new.md'),'manual');await assert.rejects(()=>p.removeEmptyLibraryFolder('generated'),/ENOTEMPTY|EEXIST/);assert.equal(fs.readFileSync(path.join(root,'new.md'),'utf8'),'manual');fs.unlinkSync(path.join(root,'new.md'));assert.equal(await p.removeEmptyLibraryFolder('generated'),true);assert.equal(fs.existsSync(root),false);}finally{if(fs.existsSync(root))fs.rmSync(root,{recursive:true});}
+});

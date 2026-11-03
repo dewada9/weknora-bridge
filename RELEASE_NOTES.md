@@ -4,7 +4,7 @@ Complete readable naming across the automatic library: source cards use document
 
 Owned legacy files migrate through Obsidian native rename with backlink updates, including shortened Markdown links without extensions. Journals recover interrupted migrations. Manually edited notes retain their bodies and remain protected; unknown destinations are never overwritten. Only emptied old generated entity folders are removed.
 
-74 automated tests pass, including concurrent manual edits during rename and edits after interrupted migration. Existing users can update through Community plugins; preserve data.json. Do not install a second copy alongside a custom deployment.
+75 automated tests pass, including concurrent manual edits during rename and edits after interrupted migration. Existing users can update through Community plugins; preserve data.json. Do not install a second copy alongside a custom deployment.
 
 Desktop Obsidian 1.11.4+ required. Windows tested; macOS/Linux unverified; mobile disabled. Graph import requires the documented authenticated snapshot extension. Release assets contain no private deployment data or credentials.
 

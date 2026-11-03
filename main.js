@@ -150,6 +150,12 @@ module.exports=class WeKnoraPlugin extends Plugin{
   const run=this.engine.tail.then(()=>archiveCompleted(path,{...this.archiveOptions(),guard:()=>!this.closed&&this.data.autoMove&&this.eligible(file)&&file.path===path&&file.stat.mtime===mtime}));this.engine.tail=run.catch(()=>{});
   try{const target=await run;if(target)this.schedule(file);}catch(e){if(Object.values(this.data.records).some(r=>r.moveTo))this.movesReady=false;throw e;}
  }
+ async removeEmptyLibraryFolder(path){
+  if(this.closed)throw Error('插件已暂停');const vault=this.app.vault,folder=vault.getAbstractFileByPath(path);if(!folder)return true;
+  if(!Array.isArray(folder.children)||folder.children.length)return false;
+  // Nonrecursive rmdir also rejects files that arrive after the empty-cache check.
+  await require('fs').promises.rmdir(vault.adapter.getFullPath(path));return true;
+ }
  async refreshLibrary(manual=false){
   if(this.closed||this.connecting||!this.api||this.libraryRunning||(!manual&&!this.data.autoLibrary))return;this.libraryRunning=true;this.libraryStatus?.setText('知识目录刷新中…');
   const state=this.data.library||(this.data.library={});const previous=JSON.stringify([state.error,state.conflicts]);
@@ -162,7 +168,7 @@ module.exports=class WeKnoraPlugin extends Plugin{
     await this.ensureFolder(to.slice(0,to.lastIndexOf('/')));await this.app.fileManager.renameFile(f,to);
    },removeEmptyFolder:async path=>{
     if(this.closed)throw Error('插件已暂停');const folder=vault.getAbstractFileByPath(path);if(!folder)return true;
-    if(Array.isArray(folder.children)&&folder.children.length===0){await vault.delete(folder);return true;}return false;
+    return this.removeEmptyLibraryFolder(path);
    },write:async(path,text,expected)=>{
     if(this.closed)throw Error('插件已暂停');
     const parts=path.split('/');parts.pop();let folder='';for(const part of parts){folder=folder?folder+'/'+part:part;if(!vault.getAbstractFileByPath(folder)&&!(await vault.adapter.exists(folder)))await vault.createFolder(folder);}
