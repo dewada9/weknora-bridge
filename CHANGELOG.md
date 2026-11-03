@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.3
+
+- Generate readable title-first Canvas filenames with stable short suffixes.
+- Migrate owned unchanged graphs via native rename with backlink updates and a recovery journal.
+- Preserve manually edited graphs and collisions; keep remote identities stable.
+- 65 automated tests pass.
+
+
 ## 1.3.2
 
 - Continue parsing-status refresh after individual missing documents; report failures beside their files.

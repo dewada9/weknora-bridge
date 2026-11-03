@@ -25,7 +25,7 @@ If you only run stock WeKnora, validate the API contract before enabling continu
 
 Requires **Obsidian 1.11.4+ on desktop**. Mobile is not supported by this release.
 
-Open the [official community listing](https://community.obsidian.md/plugins/weknora-bridge) and choose **Add to Obsidian**, then configure the plugin using steps 3–5 below. Alternatively, download `weknora-bridge-1.3.2-plugin.zip` from the [latest release](https://github.com/dewada9/weknora-bridge/releases/latest) and extract its three files into `<vault>/.obsidian/plugins/weknora-bridge/`.
+Open the [official community listing](https://community.obsidian.md/plugins/weknora-bridge) and choose **Add to Obsidian**, then configure the plugin using steps 3–5 below. Alternatively, download `weknora-bridge-1.3.3-plugin.zip` from the [latest release](https://github.com/dewada9/weknora-bridge/releases/latest) and extract its three files into `<vault>/.obsidian/plugins/weknora-bridge/`.
 
 For a local source build, use steps 1–2 first:
 
@@ -70,3 +70,8 @@ npm run check
 There are no npm runtime or build dependencies. The build bundles local modules only. Tests cover request failure, duplicate prevention, guarded replacement, rename recovery, native-secret errors, persistent UI, graph ownership and concurrent edits. Unit tests do not prove compatibility with every WeKnora version; run the [manual acceptance checklist](docs/acceptance.md) against a disposable knowledge base.
 
 See [中文说明](README.zh-CN.md), [contributing](CONTRIBUTING.md), [security](SECURITY.md) and [changelog](CHANGELOG.md). Licensed under [MIT](LICENSE).
+
+
+### Readable graph filenames (1.3.3)
+
+Generated Canvas files use the document title plus a short ID suffix. Unchanged owned legacy files migrate through native rename and update backlinks. Manually edited files and destination collisions are retained for review. Migration journals recover interrupted renames; generated files remain excluded from upload.

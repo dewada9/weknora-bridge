@@ -5,7 +5,11 @@ const id=s=>digest(String(s)).slice(0,20);
 const plain=s=>String(s??'').replace(/[\r\n]/g,' ').replace(/\[/g,'［').replace(/\]/g,'］').replace(/\|/g,'｜').replace(/</g,'＜').replace(/>/g,'＞').replace(/[*`#]/g,'');
 const wiki=(p,t)=>`[[${p}|${plain(t)}]]`;
 const cardPath=kg=>`${PREFIX}/资料/${id(kg)}.md`;
-const canvasPath=kg=>`${PREFIX}/简图/${id(kg)}.canvas`;
+const legacyCanvasPath=kg=>`${PREFIX}/简图/${id(kg)}.canvas`;
+const canvasPath=(kg,title)=>{
+ const readable=plain(title||'未命名资料').replace(/[\\/:*?"<>|\x00-\x1f\x7f]/g,'-').replace(/\s+/g,' ').replace(/^[ .]+|[ .]+$/g,'').slice(0,72).replace(/[ .]+$/g,'')||'未命名资料';
+ return `${PREFIX}/简图/${readable} - ${id(kg).slice(0,8)}.canvas`;
+};
 const nodePath=n=>`${PREFIX}/实体/${id(n.kg)}/${id(n.id)}.md`;
 function note(props,body){return '---\nweknora_sync: false\nautomatic_library: true\n'+Object.entries(props).map(([k,v])=>k+': '+JSON.stringify(v)).join('\n')+'\n---\n\n'+body+'\n';}
 function category(title){
@@ -25,6 +29,7 @@ function validate(s,c){
 }
 function render(s,c){
  validate(s,c);const files={},groups=new Map(),nodes=new Map(s.nodes.map(n=>[n.id,n])),adj=new Map(s.nodes.map(n=>[n.id,[]])),byCategory=new Map();
+ const graphPath=kg=>c.canvasPaths?.[kg]||canvasPath(kg,s.documents[kg]?.title);
  for(const n of s.nodes){if(!groups.has(n.kg))groups.set(n.kg,[]);groups.get(n.kg).push(n);}
  for(const r of s.relations){adj.get(r.source).push(r);if(r.source!==r.target)adj.get(r.target).push(r);}
  let graphs=0,isolated=s.nodes.filter(n=>!adj.get(n.id).length).length;
@@ -32,7 +37,7 @@ function render(s,c){
   const title=d.title||'未命名资料',cat=category(title),ns=groups.get(kg)||[],url=c.base+'/platform/knowledge-bases/'+encodeURIComponent(c.kb)+'?knowledge_id='+encodeURIComponent(kg),ready=d.parse_status==='completed';
   if(!byCategory.has(cat))byCategory.set(cat,[]);byCategory.get(cat).push(wiki(cardPath(kg),title));
   const lines=[`# ${plain(title)}`,'',`[在 WeKnora 查看原文](${url})`,'',`- 自动分类：${cat}`,`- 解析状态：${plain(d.parse_status)}`,`- 文档 ID：\`${kg}\``,`- 当前导出包含 ${ns.length} 个实体。`,''];
-  if(ready&&ns.length)lines.push(wiki(canvasPath(kg),'打开精简关系图'),'', '简图显示一个中心及最多六个邻居；点击实体查看属性、关系和来源分块。');
+  if(ready&&ns.length)lines.push(wiki(graphPath(kg),'打开精简关系图'),'', '简图显示一个中心及最多六个邻居；点击实体查看属性、关系和来源分块。');
   else lines.push(ready?'本次导出没有实体：需核对文档是否适合抽取、图谱配置与处理结果。':'文档尚未完成解析，本轮不更新其简图，保留已有本地内容。');
   lines.push('','> 自动抽取未独立复核；工程结论需要回到原文。分类依据标题规则，无法确定的进入“待分类”。','',wiki(PREFIX+'/00-自动知识库.md','返回自动资料导航'));
   files[cardPath(kg)]=note({title,source_document_id:kg,领域:cat,parse_status:d.parse_status||'unknown',验证状态:'自动生成，待核对'},lines.join('\n'));
@@ -53,7 +58,7 @@ function render(s,c){
   }
   const ce=chosen.map((nid,i)=>{const r=[...neighborEdges.get(nid)].sort((a,b)=>a.type.length-b.type.length||a.type.localeCompare(b.type)||a.source.localeCompare(b.source))[0];const right=positions.get(r.source)[0]<positions.get(r.target)[0];return {id:'edge'+i,fromNode:id(r.source),fromSide:right?'right':'left',toNode:id(r.target),toSide:right?'left':'right',toEnd:'arrow',label:plain(r.type)};});
   cn.push({id:'footer',type:'text',text:'沿箭头读“实体 → 关系 → 实体”。中心按连接数量选择，不代表已核对的系统架构。\n每个邻居只展示一条原始关系；其他关系在实体笔记中。',x:0,y:990,width:2000,height:150});
-  files[canvasPath(kg)]=JSON.stringify({nodes:cn,edges:ce},null,2);graphs++;
+  files[graphPath(kg)]=JSON.stringify({nodes:cn,edges:ce},null,2);graphs++;
  }
  const index=['# 自动知识库','',`当前 ${Object.keys(s.documents).length} 份资料 · ${graphs} 张简图 · ${s.nodes.length} 个远端实体`,'','本页随插件自动刷新。先按分类打开资料，再查看带名称和箭头的简图。', '', '## 按领域找资料',''];
  for(const [cat,links]of byCategory){index.push(`### ${cat}`,'',...links.map(x=>'- '+x),'');}
@@ -64,17 +69,51 @@ function render(s,c){
 function canonical(x){return Array.isArray(x)?x.map(canonical):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,canonical(x[k])])):x;}
 function hash(path,text){if(path.endsWith('.canvas')){try{text=JSON.stringify(canonical(JSON.parse(text)));}catch{}}return digest(text.replace(/\r\n/g,'\n'));}
 async function refresh(snapshot,config,state,io,persist){
- const desired=render(snapshot,config);state.files??={};state.docs??={};const conflicts=[];let written=0;
+ let desired=render(snapshot,config);state.files??={};state.docs??={};state.canvasMoves??={};const conflicts=[],paths={};let written=0,ownedCache=null;
+ const finishMove=async(kg,m)=>{
+  for(const link of m.links||[]){const text=await io.read(link.path);if(text!==null){const h=hash(link.path,text);if(h===link.before||h===link.after||link.alternatives?.includes(h)){state.files[link.path]=h;ownedCache?.set(link.path,text);}}}
+  ownedCache?.delete(m.from);
+  delete state.files[m.from];state.files[m.to]=m.hash;state.docs[kg]={...state.docs[kg],canvasPath:m.to};delete state.canvasMoves[kg];await persist();
+ };
+ // A persisted journal distinguishes a completed native rename from an unrelated collision.
+ for(const [kg,m]of Object.entries(state.canvasMoves)){
+  if(m.from!==legacyCanvasPath(kg)&&m.from!==state.docs[kg]?.canvasPath)throw Error('简图迁移来源不匹配');
+  if(m.to!==canvasPath(kg,m.title))throw Error('简图迁移目标不匹配，请保留现场后核对');
+  const from=await io.read(m.from),to=await io.read(m.to);
+  if(from===null&&to!==null&&hash(m.to,to)===m.hash)await finishMove(kg,m);
+  else if(from!==null&&hash(m.from,from)===m.hash&&to===null&&io.rename){await io.rename(m.from,m.to,from);await finishMove(kg,m);}
+  else{conflicts.push(m.from);paths[kg]=from!==null?m.from:m.to;}
+ }
+ for(const [kg,d]of Object.entries({...state.docs,...snapshot.documents})){
+  const target=canvasPath(kg,d.title);if(paths[kg])continue;
+  const from=state.docs[kg]?.canvasPath||legacyCanvasPath(kg);if(from===target)continue;
+  const current=await io.read(from);if(current===null)continue;
+  if(!state.files[from]||hash(from,current)!==state.files[from]||await io.read(target)!==null||!io.rename){conflicts.push(from);paths[kg]=from;continue;}
+  if(!ownedCache){ownedCache=new Map();for(const [path,previous]of Object.entries(state.files)){const text=await io.read(path);if(text!==null&&hash(path,text)===previous)ownedCache.set(path,text);}}
+  const links=[];for(const [path,cached]of ownedCache){if(path===from||!cached.includes(from))continue;const text=await io.read(path),previous=state.files[path];if(text!==null&&hash(path,text)===previous)links.push({path,before:previous,after:hash(path,text.split(from).join(target)),alternatives:[target.split('/').pop(),require('path').posix.relative(require('path').posix.dirname(path),target)].map(p=>hash(path,text.split(from).join(p)))});}
+  const move={from,to:target,title:d.title,hash:hash(from,current),links};state.canvasMoves[kg]=move;await persist();
+  await io.rename(from,target,current);await finishMove(kg,move);
+ }
+ desired=render(snapshot,{...config,canvasPaths:paths});
  // Remote disappearance is reversible: keep source notes, change only owned unchanged notes.
  for(const [kg,rec]of Object.entries(state.docs))if(!Object.hasOwn(snapshot.documents,kg))desired[cardPath(kg)]=note({title:rec.title,source_document_id:kg,parse_status:'removed'},`# ${plain(rec.title)}\n\n远端已移出当前知识库；保留本地记录与之前的简图。\n\n`+wiki(PREFIX+'/00-自动知识库.md','当前资料目录'));
  try{
   for(const [path,text]of Object.entries(desired)){
-   const current=await io.read(path),wanted=hash(path,text),previous=state.files[path];
+   const current=await io.read(path),wanted=hash(path,text);let previous=state.files[path];
+   // Recover a previous migration whose native rename shortened a generated wiki link.
+   // Accept only a full previous-file hash match after reverting recognized Canvas links.
+   if(current!==null&&previous&&hash(path,current)!==previous&&path.endsWith('.md')){
+    for(const [kg,d]of Object.entries(state.docs)){if(!d.canvasPath||!state.files[d.canvasPath])continue;
+     const legacy=legacyCanvasPath(kg);let reverted=current;
+     for(const alias of [d.canvasPath,d.canvasPath.split('/').pop(),require('path').posix.relative(require('path').posix.dirname(path),d.canvasPath)])reverted=reverted.split('[['+alias).join('[['+legacy);
+     if(hash(path,reverted)===previous){previous=state.files[path]=hash(path,current);break;}
+    }
+   }
    if(current!==null&&hash(path,current)===wanted){state.files[path]=wanted;continue;}
    if(current!==null&&(!previous||hash(path,current)!==previous)){conflicts.push(path);continue;}
    await io.write(path,text,current);state.files[path]=wanted;written++;
   }
-  for(const [kg,d]of Object.entries(snapshot.documents))state.docs[kg]={title:d.title||'未命名资料'};
+  for(const [kg,d]of Object.entries(snapshot.documents))state.docs[kg]={...state.docs[kg],title:d.title||'未命名资料',...(Object.hasOwn(desired,paths[kg]||canvasPath(kg,d.title))?{canvasPath:paths[kg]||canvasPath(kg,d.title)}:{})};
   state.lastSuccess=new Date().toISOString();state.snapshotAt=snapshot.generated_at;state.conflicts=conflicts;state.documents=Object.keys(snapshot.documents).length;state.error=null;
  }finally{await persist();}
  return {written,conflicts,documents:Object.keys(snapshot.documents).length};

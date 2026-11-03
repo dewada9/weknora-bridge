@@ -156,7 +156,11 @@ module.exports=class WeKnoraPlugin extends Plugin{
   try{
    const snapshot=await this.api.request('GET','/api/v1/obsidian/graph');if(this.closed)return;
    const vault=this.app.vault;
-   const io={read:async path=>{const f=vault.getAbstractFileByPath(path);if(f instanceof TFile)return vault.read(f);if(await vault.adapter.exists(path))return vault.adapter.read(path);return null;},write:async(path,text,expected)=>{
+   const io={read:async path=>{const f=vault.getAbstractFileByPath(path);if(f instanceof TFile)return vault.read(f);if(await vault.adapter.exists(path))return vault.adapter.read(path);return null;},rename:async(from,to,expected)=>{
+    if(this.closed)throw Error('插件已暂停');const f=vault.getAbstractFileByPath(from);
+    if(!(f instanceof TFile)||await vault.read(f)!==expected||await vault.adapter.exists(to))throw Error('简图正在修改或目标已存在，保留原文件');
+    await this.app.fileManager.renameFile(f,to);
+   },write:async(path,text,expected)=>{
     if(this.closed)throw Error('插件已暂停');
     const parts=path.split('/');parts.pop();let folder='';for(const part of parts){folder=folder?folder+'/'+part:part;if(!vault.getAbstractFileByPath(folder)&&!(await vault.adapter.exists(folder)))await vault.createFolder(folder);}
     const f=vault.getAbstractFileByPath(path);if(f instanceof TFile)await vault.process(f,current=>{if(current!==expected)throw Error('文件正在编辑，稍后重试');return text;});
