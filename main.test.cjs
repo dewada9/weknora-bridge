@@ -5,6 +5,17 @@ const notices=[];
 source.require=id=>id==='obsidian'?{Plugin:class{},Modal:class{},Setting:class{},PluginSettingTab:class{},FuzzySuggestModal:class{},TFile,Notice:class{constructor(text){notices.push(text);}}}:id==='./credential'?{credential:async()=>{throw Error('test missing credential');}}:require(id);
 source._compile(fs.readFileSync(source.filename,'utf8'),source.filename);const Plugin=source.exports;
 function setup(){const p=new Plugin();p.data={autoSync:true,autoInbox:true,records:{}};p.inflight=new Set();p.timers=new Map();p.status={setText(){}};p.persist=async()=>{};p.app={metadataCache:{getFileCache:()=>({frontmatter:{}})},vault:{}};return p;}
+test('status refresh continues after a missing remote and preserves its identity',async()=>{
+ const p=setup();p.data.records={'missing.md':{id:'gone',source:'s1',status:'completed'},'good.md':{id:'ok',source:'s2',status:'pending'},'new.md':{}};
+ p.api={get:async id=>{if(id==='gone')throw Object.assign(Error('HTTP 404'),{statusCode:404});return {parse_status:'completed',metadata:{obsidian_source:'s2'}};}};
+ let saved=0;p.persist=async()=>saved++;const r=await p.refreshStatuses();
+ assert.equal(r.updated,1);assert.equal(r.failed,1);assert.equal(saved,1);assert.equal(p.data.records['good.md'].status,'completed');assert.equal(p.data.records['missing.md'].id,'gone');assert.match(p.data.records['missing.md'].statusError,/远端文档不存在/);
+});
+test('status refresh preserves source mismatch and sync errors, clears only stale status errors',async()=>{
+ const p=setup();p.data.records={'a.md':{id:'a',source:'s',error:'manual conflict',statusError:'offline'},'b.md':{id:'b',source:'expected',status:'pending'}};
+ p.api={get:async()=>({parse_status:'completed',metadata:{obsidian_source:'s'}})};const r=await p.refreshStatuses();
+ assert.equal(r.failed,1);assert.equal(p.data.records['a.md'].error,'manual conflict');assert.equal(p.data.records['a.md'].statusError,undefined);assert.equal(p.data.records['b.md'].status,'pending');assert.match(p.data.records['b.md'].statusError,/来源/);
+});
 test('bulk sync defers extra files before reading or queuing their content',async()=>{
  const p=setup(),f=new TFile('01-收件箱/待入库/a.pdf');p.inflight=new Set(['busy1','busy2']);let scheduled=0;
  p.engine={sync:()=>{throw Error('must not queue');}};p.app.vault.readBinary=()=>{throw Error('must not read');};p.schedule=()=>scheduled++;

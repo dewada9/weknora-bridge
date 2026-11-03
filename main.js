@@ -46,9 +46,9 @@ class StatusModal extends Modal{
   const check=this.contentEl.createEl('button',{text:'测试连接'});check.onclick=async()=>{check.disabled=true;try{const r=await p.testConnection();new Notice('知识库连接正常：'+r.latencyMs+' ms');}catch(e){new Notice(e.message,10000);}finally{check.disabled=false;}};
   this.contentEl.createEl('button',{text:'导入电脑文件'}).onclick=()=>p.pickExternalFiles();
   this.contentEl.createEl('button',{text:'重试待处理任务'}).onclick=async()=>{for(const r of Object.values(p.data.records))delete r.nextRetryAt;await p.persist();p.scan();new Notice('已安排重试');};
-  const refresh=this.contentEl.createEl('button',{text:'刷新解析状态'});refresh.onclick=async()=>{refresh.disabled=true;try{for(const rec of Object.values(p.data.records)){if(rec.id)rec.status=(await p.api.get(rec.id)).parse_status;}await p.persist();this.render();}catch(e){new Notice(e.message);refresh.disabled=false;}};
+  const refresh=this.contentEl.createEl('button',{text:'刷新解析状态'});refresh.onclick=async()=>{refresh.disabled=true;try{const r=await p.refreshStatuses();this.render();new Notice('状态刷新：成功 '+r.updated+' 篇，需核对 '+r.failed+' 篇'+(r.skipped?'，未检查 '+r.skipped+' 篇':'')+'；详情见各文件状态',8000);}catch(e){new Notice(e.message,10000);}finally{refresh.disabled=false;}};
   const paths=new Set([...Object.keys(p.data.records),...p.app.vault.getFiles().filter(f=>p.eligible(f)).map(f=>f.path)]);
-  for(const path of paths){const r=p.data.records[path]||{};const d=this.contentEl.createDiv({cls:'wk-result'});d.createEl('strong',{text:path});d.createEl('p',{text:r.error||({completed:'已入库，可检索',pending:'等待解析',processing:'正在解析',running:'正在解析',finalizing:'解析收尾中，请等待',failed:'解析失败，请在网页查看详情'}[r.status]||r.status||'待上传')});if(r.error&&r.nextRetryAt)d.createEl('small',{text:'下次重试：'+new Date(r.nextRetryAt).toLocaleTimeString()});if(r.id)d.createEl('button',{text:'打开来源'}).onclick=()=>p.openSource(r.id);}
+  for(const path of paths){const r=p.data.records[path]||{};const d=this.contentEl.createDiv({cls:'wk-result'});d.createEl('strong',{text:path});d.createEl('p',{text:r.statusError||r.error||({completed:'已入库，可检索',pending:'等待解析',processing:'正在解析',running:'正在解析',finalizing:'解析收尾中，请等待',failed:'解析失败，请在网页查看详情'}[r.status]||r.status||'待上传')});if(r.error&&r.nextRetryAt)d.createEl('small',{text:'下次重试：'+new Date(r.nextRetryAt).toLocaleTimeString()});if(r.id)d.createEl('button',{text:'打开来源'}).onclick=()=>p.openSource(r.id);}
  }
 }
 class Settings extends PluginSettingTab{
@@ -103,6 +103,27 @@ module.exports=class WeKnoraPlugin extends Plugin{
   await this.connect().catch(e=>new Notice('WeKnora：'+e.message,10000));
  }
  openSettings(){this.app.setting.open();this.app.setting.openTabById(this.manifest.id);}
+ async refreshStatuses(){
+  if(!this.api)throw Error('请先在 WeKnora 设置中配置连接');
+  if(this.refreshingStatuses)return this.refreshingStatuses;
+  const api=this.api;
+  const run=(async()=>{const result={updated:0,failed:0,skipped:0};const records=Object.values(this.data.records).filter(r=>r.id);
+   for(let i=0;i<records.length;i++){
+    const rec=records[i],id=rec.id;
+    if(this.closed||this.api!==api){result.skipped+=records.length-i;break;}
+    try{const remote=await api.get(id);if(this.closed||this.api!==api||rec.id!==id){result.skipped++;continue;}
+     if(!remote)throw Object.assign(Error('missing'),{statusCode:404});
+     if(remote.metadata?.obsidian_source!==rec.source)throw Error('远端来源不匹配，已保留原关联，请人工核对');
+     rec.status=remote.parse_status;rec.statusCheckedAt=new Date().toISOString();delete rec.statusError;result.updated++;
+    }catch(e){if(this.closed||this.api!==api||rec.id!==id){result.skipped++;continue;}
+     rec.statusError=e.statusCode===404?'远端文档不存在或已删除；本地文件和原关联已保留，请核对后重新关联':e.message;result.failed++;
+     if(e.networkError||[401,403,429].includes(e.statusCode)){result.skipped+=records.length-i-1;break;}
+    }
+   }
+   await this.persist();return result;
+  })();this.refreshingStatuses=run;
+  try{return await run;}finally{this.refreshingStatuses=null;}
+ }
  async testConnection(){
   if(!this.api||!this.config)throw Error('请先在 WeKnora 设置中配置连接');
   const started=Date.now();await this.api.request('GET','/api/v1/knowledge-bases/'+encodeURIComponent(this.config.kb)+'/knowledge?page=1&page_size=1');

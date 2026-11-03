@@ -8,7 +8,7 @@ test('API requests accept compressed JSON and reuse one connection',async()=>{
 test('HTML authentication and proxy errors provide actionable diagnostics without echoing server content',async()=>{
  for(const [status,pattern] of [[401,/API 密钥/],[403,/权限/],[413,/大小/],[429,/限流/],[502,/反向代理/]]){
   await withServer((q,r)=>{r.writeHead(status);r.end('<html>secret-server-detail</html>');},async a=>{
-   await assert.rejects(a.get('a'),e=>pattern.test(e.message)&&!e.message.includes('secret-server-detail'));
+   await assert.rejects(a.get('a'),e=>e.statusCode===status&&pattern.test(e.message)&&!e.message.includes('secret-server-detail'));
   });
  }
 });

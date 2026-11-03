@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.2
+
+- Continue parsing-status refresh after individual missing documents; report failures beside their files.
+- Preserve missing-document associations and manual sync errors instead of deleting or blindly re-uploading.
+- Show a single success/failure summary; stop repeated requests on network/authentication/rate-limit errors.
+- Validate source identity before accepting refreshed status. HTTP errors now carry structured status codes.
+- 58 automated tests pass.
+
+
 ## 1.3.1
 
 - Public domain/IP endpoints require HTTPS; private/loopback HTTP remains supported. Normal certificate verification is retained.

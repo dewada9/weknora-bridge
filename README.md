@@ -25,7 +25,7 @@ If you only run stock WeKnora, validate the API contract before enabling continu
 
 Requires **Obsidian 1.11.4+ on desktop**. Mobile is not supported by this release.
 
-Open the [official community listing](https://community.obsidian.md/plugins/weknora-bridge) and choose **Add to Obsidian**, then configure the plugin using steps 3–5 below. Alternatively, download `weknora-bridge-1.3.1-plugin.zip` from the [latest release](https://github.com/dewada9/weknora-bridge/releases/latest) and extract its three files into `<vault>/.obsidian/plugins/weknora-bridge/`.
+Open the [official community listing](https://community.obsidian.md/plugins/weknora-bridge) and choose **Add to Obsidian**, then configure the plugin using steps 3–5 below. Alternatively, download `weknora-bridge-1.3.2-plugin.zip` from the [latest release](https://github.com/dewada9/weknora-bridge/releases/latest) and extract its three files into `<vault>/.obsidian/plugins/weknora-bridge/`.
 
 For a local source build, use steps 1–2 first:
 

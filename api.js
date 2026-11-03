@@ -5,11 +5,11 @@ const {randomBytes}=require('crypto');
 const {serviceUrl}=require('./connection');
 function httpFailure(status){
  const detail=({401:'API 密钥无效，或反向代理要求额外登录；请检查服务入口和密钥',403:'没有知识库权限，或请求被代理访问规则拦截',404:'接口不存在；请核对根地址、知识库 ID 和服务器版本',413:'文件超过服务器或反向代理允许的大小',429:'服务器限流；请稍后重试',502:'反向代理无法连接知识库服务',503:'知识库服务暂不可用',504:'反向代理等待知识库响应超时'})[status]||'请检查权限或远端文档状态';
- return Object.assign(Error('请求失败（HTTP '+status+'）：'+detail),{definitelyNotSent:[400,401,403,404,413,415,429].includes(status)});
+ return Object.assign(Error('请求失败（HTTP '+status+'）：'+detail),{statusCode:status,definitelyNotSent:[400,401,403,404,413,415,429].includes(status)});
 }
 function networkFailure(e,connected){
  const code=e.code||'',message=/CERT|TLS|SSL|SELF_SIGNED|VERIFY_LEAF/.test(code)?'HTTPS 证书验证失败；请配置有效证书并核对域名或 IP':code==='ENOTFOUND'||code==='EAI_AGAIN'?'域名解析失败；请检查服务地址和 DNS':code==='ECONNREFUSED'?'服务拒绝连接；请检查服务端口和反向代理':code==='ETIMEDOUT'?'连接超时；请检查服务地址、网络和防火墙':'连接中断；请检查服务地址和网络，私有地址还需连接私有网络';
- return Object.assign(Error(message),{definitelyNotSent:!connected});
+ return Object.assign(Error(message),{networkError:true,definitelyNotSent:!connected});
 }
 function engineeringMetadata(path,bytes,parseYaml){
  let fm={};const front=/\.md$/i.test(path)&&bytes.toString('utf8').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
