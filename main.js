@@ -159,7 +159,10 @@ module.exports=class WeKnoraPlugin extends Plugin{
    const io={read:async path=>{const f=vault.getAbstractFileByPath(path);if(f instanceof TFile)return vault.read(f);if(await vault.adapter.exists(path))return vault.adapter.read(path);return null;},rename:async(from,to,expected)=>{
     if(this.closed)throw Error('插件已暂停');const f=vault.getAbstractFileByPath(from);
     if(!(f instanceof TFile)||await vault.read(f)!==expected||await vault.adapter.exists(to))throw Error('简图正在修改或目标已存在，保留原文件');
-    await this.app.fileManager.renameFile(f,to);
+    await this.ensureFolder(to.slice(0,to.lastIndexOf('/')));await this.app.fileManager.renameFile(f,to);
+   },removeEmptyFolder:async path=>{
+    if(this.closed)throw Error('插件已暂停');const folder=vault.getAbstractFileByPath(path);if(!folder)return true;
+    if(Array.isArray(folder.children)&&folder.children.length===0){await vault.delete(folder);return true;}return false;
    },write:async(path,text,expected)=>{
     if(this.closed)throw Error('插件已暂停');
     const parts=path.split('/');parts.pop();let folder='';for(const part of parts){folder=folder?folder+'/'+part:part;if(!vault.getAbstractFileByPath(folder)&&!(await vault.adapter.exists(folder)))await vault.createFolder(folder);}

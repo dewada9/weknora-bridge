@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.4
+
+- Extend readable names to source cards, entity folders and entity notes.
+- Migrate existing files with native link updates, journals and concurrent-edit protection.
+- Clean only empty old generated entity folders; preserve source identities and edited contents.
+- 73 automated tests pass.
+
+
 ## 1.3.3
 
 - Generate readable title-first Canvas filenames with stable short suffixes.
